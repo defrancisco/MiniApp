@@ -1,11 +1,10 @@
-// app/game.tsx
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ImageBackground } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { generateOperation, MathOperation, Difficulty } from '../src/models/MathEngine';
+import { calculateScore } from '../src/models/ScoreEngine';
 import ProgressBar from '../src/components/ProgressBar';
 
-// Definimos el tiempo máximo por operación (ej. 10 segundos)
 const TIME_LIMIT_MS = 10000; 
 
 export default function GameScreen() {
@@ -14,45 +13,44 @@ export default function GameScreen() {
   
   const [operation, setOperation] = useState<MathOperation | null>(null);
   const [answer, setAnswer] = useState('');
-  
-  // Estado para el cronómetro
   const [timeLeft, setTimeLeft] = useState(TIME_LIMIT_MS);
+  
+  // ¡Nuevo estado para el puntaje acumulado!
+  const [score, setScore] = useState(0);
 
-  // Generar nueva cuenta y reiniciar el reloj
   const startNewRound = () => {
     setOperation(generateOperation((difficulty as Difficulty) || 'facil'));
     setAnswer('');
     setTimeLeft(TIME_LIMIT_MS);
   };
 
-  // Efecto inicial
   useEffect(() => {
     startNewRound();
   }, [difficulty]);
 
-  // Efecto del Cronómetro
   useEffect(() => {
-    // Si no hay operación activa o el tiempo llegó a cero, no hacemos nada
     if (!operation || timeLeft <= 0) return;
 
-    // Restamos 100ms cada 100ms para una animación fluida de la barra
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 100) {
           clearInterval(timer);
-          handleTimeOut(); // Se acabó el tiempo
+          handleTimeOut(); 
           return 0;
         }
         return prev - 100;
       });
     }, 100);
 
-    // Limpieza obligatoria del intervalo
     return () => clearInterval(timer);
   }, [operation, timeLeft]);
 
   const handleTimeOut = () => {
-    Alert.alert('¡Tiempo agotado!', 'Perdiste 50 puntos.', [
+    // Calculamos puntaje por tiempo agotado
+    const points = calculateScore(false, true, 0, TIME_LIMIT_MS);
+    setScore(prev => prev + points);
+
+    Alert.alert('¡Tiempo agotado!', `Perdiste ${Math.abs(points)} puntos.`, [
       { text: 'Siguiente', onPress: startNewRound }
     ]);
   };
@@ -61,63 +59,143 @@ export default function GameScreen() {
     if (!operation || answer === '') return;
 
     const userAnswer = parseInt(answer);
+    const isCorrect = userAnswer === operation.correctAnswer;
 
-    if (userAnswer === operation.correctAnswer) {
-      // Aquí más adelante calcularemos si respondió rápido (menos del 75%) o normal
-      Alert.alert('¡Correcto!', `Te sobraron ${timeLeft / 1000} segundos.`);
+    // Calculamos el puntaje usando nuestro motor
+    const points = calculateScore(isCorrect, false, timeLeft, TIME_LIMIT_MS);
+    setScore(prev => prev + points);
+
+    if (isCorrect) {
+      Alert.alert('¡Correcto!', `Sumaste ${points} puntos.`);
       startNewRound();
     } else {
-      Alert.alert('Incorrecto', `La respuesta era ${operation.correctAnswer}`);
+      Alert.alert('Incorrecto', `La respuesta era ${operation.correctAnswer}. Perdiste ${Math.abs(points)} puntos.`);
       startNewRound();
     }
   };
 
-  // Calculamos qué porcentaje de la barra debe estar pintado de rojo
   const progressPercentage = (timeLeft / TIME_LIMIT_MS) * 100;
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.infoText}>Modo: {mode} | Dificultad: {difficulty}</Text>
-
-      {/* Agregamos nuestra nueva barra de progreso */}
-      <ProgressBar percentage={progressPercentage} />
-
-      {operation && (
-        <View style={styles.gameArea}>
-          <Text style={styles.questionText}>{operation.question} = ?</Text>
-          
-          <TextInput
-            style={styles.input}
-            keyboardType="numeric"
-            value={answer}
-            onChangeText={setAnswer}
-            placeholder="Escribe tu respuesta..."
-            placeholderTextColor="#A6ADC8"
-            autoFocus // Para que el teclado se abra solo
-          />
-
-          <TouchableOpacity style={styles.button} onPress={handleValidate}>
-            <Text style={styles.buttonText}>Responder</Text>
-          </TouchableOpacity>
+    // Agregamos el mismo ImageBackground que en el index
+    <ImageBackground 
+      source={require('../assets/background.jpg')} 
+      style={styles.background}
+      resizeMode="cover"
+    >
+      <View style={styles.overlay}>
+        {/* Mostramos el puntaje en la parte superior */}
+        <View style={styles.header}>
+          <Text style={styles.infoText}>Modo: {mode} | Dificultad: {difficulty}</Text>
+          <Text style={styles.scoreText}>Puntos: {score}</Text>
         </View>
-      )}
 
-      <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-        <Text style={styles.backButtonText}>Abandonar Partida</Text>
-      </TouchableOpacity>
-    </View>
+        <ProgressBar percentage={progressPercentage} />
+
+        {operation && (
+          <View style={styles.gameArea}>
+            <Text style={styles.questionText}>{operation.question} = ?</Text>
+            
+            <TextInput
+              style={styles.input}
+              keyboardType="numeric"
+              value={answer}
+              onChangeText={setAnswer}
+              placeholder="Escribe tu respuesta..."
+              placeholderTextColor="#A08055"
+              autoFocus 
+            />
+
+            <TouchableOpacity style={styles.button} onPress={handleValidate}>
+              <Text style={styles.buttonText}>Responder</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <Text style={styles.backButtonText}>Abandonar Partida</Text>
+        </TouchableOpacity>
+      </View>
+    </ImageBackground>
   );
 }
 
-// ... Mantén los mismos estilos (styles) que tenías antes en game.tsx
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1E1E2E', alignItems: 'center', paddingTop: 60, paddingHorizontal: 20 },
-  infoText: { color: '#A6ADC8', fontSize: 16, marginBottom: 20, textTransform: 'capitalize' },
-  gameArea: { width: '100%', alignItems: 'center' },
-  questionText: { fontSize: 48, fontWeight: 'bold', color: '#FFFFFF', marginBottom: 30 },
-  input: { width: '80%', backgroundColor: '#313244', color: '#FFFFFF', fontSize: 24, padding: 15, borderRadius: 10, textAlign: 'center', marginBottom: 20 },
-  button: { backgroundColor: '#A6E3A1', paddingVertical: 15, width: '80%', borderRadius: 10, alignItems: 'center', marginBottom: 40 },
-  buttonText: { fontSize: 18, fontWeight: 'bold', color: '#11111B' },
-  backButton: { marginTop: 'auto', marginBottom: 40 },
-  backButtonText: { color: '#F38BA8', fontSize: 16, textDecorationLine: 'underline' },
+  background: {
+    flex: 1,
+    width: '100%',
+  },
+  overlay: {
+    flex: 1,
+    alignItems: 'center',
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)', // Mismo filtro sutil
+  },
+  header: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  infoText: { 
+    color: '#A08055', 
+    fontSize: 16, 
+    textTransform: 'capitalize',
+    fontWeight: 'bold',
+  },
+  scoreText: {
+    color: '#D4A373',
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  gameArea: { 
+    width: '100%', 
+    alignItems: 'center' 
+  },
+  questionText: { 
+    fontSize: 48, 
+    fontWeight: '900', 
+    color: '#D4A373', 
+    marginBottom: 30,
+    textShadowColor: 'rgba(255, 255, 255, 0.8)',
+    textShadowOffset: { width: 1, height: 1 },
+    textShadowRadius: 3,
+  },
+  input: { 
+    width: '80%', 
+    backgroundColor: '#FEFAE0', 
+    color: '#D4A373', 
+    fontSize: 24, 
+    padding: 15, 
+    borderRadius: 15, 
+    textAlign: 'center', 
+    marginBottom: 20,
+    borderWidth: 2,
+    borderColor: '#E9C46A',
+  },
+  button: { 
+    backgroundColor: '#D4A373', 
+    paddingVertical: 15, 
+    width: '80%', 
+    borderRadius: 15, 
+    alignItems: 'center', 
+    marginBottom: 40,
+    elevation: 3,
+  },
+  buttonText: { 
+    fontSize: 18, 
+    fontWeight: 'bold', 
+    color: '#FEFAE0' 
+  },
+  backButton: { 
+    marginTop: 'auto', 
+    marginBottom: 40 
+  },
+  backButtonText: { 
+    color: '#E07A5F', // Un rojo/naranja más suave
+    fontSize: 16, 
+    fontWeight: 'bold',
+    textDecorationLine: 'underline' 
+  },
 });
