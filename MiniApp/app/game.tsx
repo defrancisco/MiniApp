@@ -1,11 +1,13 @@
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ImageBackground } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { Difficulty } from '../src/models/MathEngine';
 import { calculateScore } from '../src/models/ScoreEngine';
 import ProgressBar from '../src/components/ProgressBar';
-import { saveScore } from '../src/models/StorageEngine';
+
 import { generarPreguntaMC, generarPreguntaVF, generarPreguntaClasica } from '../src/strategies/GameModes';
+// 1. Importamos la función para guardar la partida
+import { saveScore } from '../src/models/StorageEngine';
 
 const TIME_LIMIT_MS = 10000; 
 
@@ -18,7 +20,6 @@ export default function GameScreen() {
   const [timeLeft, setTimeLeft] = useState(TIME_LIMIT_MS);
   const [score, setScore] = useState(0);
 
-  // --- SOLUCIÓN 1: Hacemos que el reconocimiento del modo sea a prueba de balas ---
   const modoNormalizado = String(mode || '').toLowerCase();
   const esMultipleChoice = modoNormalizado.includes('choice') || modoNormalizado.includes('ltiple') || modoNormalizado.includes('multiple');
   const esVerdaderoFalso = modoNormalizado.includes('verdadero') || modoNormalizado.includes('falso') || modoNormalizado.includes('v/f');
@@ -27,7 +28,6 @@ export default function GameScreen() {
   const startNewRound = () => {
     let nuevaPregunta;
     
-    // Ahora usamos nuestras variables inteligentes
     if (esMultipleChoice) {
        nuevaPregunta = generarPreguntaMC((difficulty as Difficulty) || 'facil');
     } else if (esVerdaderoFalso) {
@@ -62,12 +62,19 @@ export default function GameScreen() {
     return () => clearInterval(timer);
   }, [currentRound, timeLeft]);
 
+  // 2. Función que guarda los datos en AsyncStorage y nos lleva al historial
+  const handleEndGame = async () => {
+    await saveScore(String(mode || 'Clásico'), String(difficulty || 'Fácil'), score);
+    router.replace('/history');
+  };
+
   const handleTimeOut = () => {
     const points = calculateScore(false, true, 0, TIME_LIMIT_MS);
     setScore(prev => prev + points);
 
     Alert.alert('¡Tiempo agotado!', `Perdiste ${Math.abs(points)} puntos.`, [
-      { text: 'Siguiente', onPress: startNewRound }
+      { text: 'Siguiente', onPress: startNewRound },
+      { text: 'Terminar Partida', onPress: handleEndGame, style: 'destructive' }
     ]);
   };
 
@@ -87,18 +94,7 @@ export default function GameScreen() {
     startNewRound();
   };
 
-  // Al finalizar el juego, guardamos el resultado y lo llevamos a la pantalla de estadísticas
-  const handleEndGame = async () => {
-    // 1. Guardamos los datos en AsyncStorage
-    await saveScore(String(mode || 'Clásico'), String(difficulty || 'Fácil'), score);
-    
-    // 2. Lo mandamos directo a ver sus estadísticas
-    router.replace('/history');
-  };
-  
   const progressPercentage = (timeLeft / TIME_LIMIT_MS) * 100;
-
-  // --- SOLUCIÓN 2: Definimos un título limpio para mostrar en pantalla ---
   const tituloPantalla = esMultipleChoice ? 'Múltiple Choice' : (esVerdaderoFalso ? 'Verdadero / Falso' : 'Modo Clásico');
 
   return (
@@ -107,9 +103,9 @@ export default function GameScreen() {
       style={styles.background}
       resizeMode="cover"
     >
+      <Stack.Screen options={{ title: tituloPantalla }} />
+
       <View style={styles.overlay}>
-        
-        {/* Cabecera con Título a la izquierda y Puntos a la derecha */}
         <View style={styles.header}>
           <Text style={styles.titleText}>{tituloPantalla}</Text>
           <Text style={styles.scoreText}>Puntos: {score}</Text>
@@ -120,7 +116,6 @@ export default function GameScreen() {
         {currentRound && (
           <View style={styles.gameArea}>
             
-            {/* VISTA MODO MÚLTIPLE CHOICE */}
             {esMultipleChoice && (
               <>
                 <Text style={styles.questionText}>{currentRound.pregunta} = ?</Text>
@@ -134,7 +129,6 @@ export default function GameScreen() {
               </>
             )}
 
-            {/* VISTA MODO VERDADERO / FALSO */}
             {esVerdaderoFalso && (
               <>
                 <Text style={styles.questionText}>{currentRound.pregunta}</Text>
@@ -149,7 +143,6 @@ export default function GameScreen() {
               </>
             )}
 
-            {/* VISTA MODO CLÁSICO */}
             {esClasico && (
               <>
                 <Text style={styles.questionText}>{currentRound.pregunta} = ?</Text>
@@ -171,10 +164,10 @@ export default function GameScreen() {
           </View>
         )}
 
-        // Botón para terminar el juego y guardar el resultado
-       <TouchableOpacity style={styles.backButton} onPress={handleEndGame}>
+        {/* 3. Botón para terminar y llamar a la función que guarda los puntos */}
+        <TouchableOpacity style={styles.backButton} onPress={handleEndGame}>
           <Text style={styles.backButtonText}>Terminar y Guardar Partida</Text>
-        </TouchableOpacity> 
+        </TouchableOpacity>
       </View>
     </ImageBackground>
   );
