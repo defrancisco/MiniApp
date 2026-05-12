@@ -19,7 +19,7 @@ export default function HomeScreen() {
     >
       
       <ScrollView contentContainerStyle={styles.overlay}>
-        <Image source={require('../assets/icon.jpg')} style={styles.logo} />
+        <Image source={require('../assets/icon.png')} style={styles.logo} />
 
         <Text style={styles.title}>Cálculo Mental</Text>
         <Text style={styles.footer}>Selecciona un modo para empezar</Text>
@@ -38,6 +38,11 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
+          <TouchableOpacity style={[styles.button, { backgroundColor: '#FFFFFF', marginTop: 20 }]} 
+              onPress={() => router.push('/history')}
+            >
+              <Text style={styles.buttonText}>🏆 Ver Historial de Puntajes </Text>
+          </TouchableOpacity>
         
       </ScrollView>
     </ImageBackground>

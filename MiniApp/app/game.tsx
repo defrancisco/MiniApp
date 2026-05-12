@@ -1,9 +1,11 @@
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ImageBackground } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState, useEffect } from 'react';
-import { generateOperation, MathOperation, Difficulty } from '../src/models/MathEngine';
+import { Difficulty } from '../src/models/MathEngine';
 import { calculateScore } from '../src/models/ScoreEngine';
 import ProgressBar from '../src/components/ProgressBar';
+import { saveScore } from '../src/models/StorageEngine';
+import { generarPreguntaMC, generarPreguntaVF, generarPreguntaClasica } from '../src/strategies/GameModes';
 
 const TIME_LIMIT_MS = 10000; 
 
@@ -11,25 +13,40 @@ export default function GameScreen() {
   const { difficulty, mode } = useLocalSearchParams();
   const router = useRouter();
   
-  const [operation, setOperation] = useState<MathOperation | null>(null);
+  const [currentRound, setCurrentRound] = useState<any>(null);
   const [answer, setAnswer] = useState('');
   const [timeLeft, setTimeLeft] = useState(TIME_LIMIT_MS);
-  
-  // ¡Nuevo estado para el puntaje acumulado!
   const [score, setScore] = useState(0);
 
+  // --- SOLUCIÓN 1: Hacemos que el reconocimiento del modo sea a prueba de balas ---
+  const modoNormalizado = String(mode || '').toLowerCase();
+  const esMultipleChoice = modoNormalizado.includes('choice') || modoNormalizado.includes('ltiple') || modoNormalizado.includes('multiple');
+  const esVerdaderoFalso = modoNormalizado.includes('verdadero') || modoNormalizado.includes('falso') || modoNormalizado.includes('v/f');
+  const esClasico = !esMultipleChoice && !esVerdaderoFalso;
+
   const startNewRound = () => {
-    setOperation(generateOperation((difficulty as Difficulty) || 'facil'));
+    let nuevaPregunta;
+    
+    // Ahora usamos nuestras variables inteligentes
+    if (esMultipleChoice) {
+       nuevaPregunta = generarPreguntaMC((difficulty as Difficulty) || 'facil');
+    } else if (esVerdaderoFalso) {
+       nuevaPregunta = generarPreguntaVF((difficulty as Difficulty) || 'facil');
+    } else {
+       nuevaPregunta = generarPreguntaClasica((difficulty as Difficulty) || 'facil');
+    }
+
+    setCurrentRound(nuevaPregunta);
     setAnswer('');
     setTimeLeft(TIME_LIMIT_MS);
   };
 
   useEffect(() => {
     startNewRound();
-  }, [difficulty]);
+  }, [difficulty, mode]);
 
   useEffect(() => {
-    if (!operation || timeLeft <= 0) return;
+    if (!currentRound || timeLeft <= 0) return;
 
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
@@ -43,10 +60,9 @@ export default function GameScreen() {
     }, 100);
 
     return () => clearInterval(timer);
-  }, [operation, timeLeft]);
+  }, [currentRound, timeLeft]);
 
   const handleTimeOut = () => {
-    // Calculamos puntaje por tiempo agotado
     const points = calculateScore(false, true, 0, TIME_LIMIT_MS);
     setScore(prev => prev + points);
 
@@ -55,147 +71,129 @@ export default function GameScreen() {
     ]);
   };
 
-  const handleValidate = () => {
-    if (!operation || answer === '') return;
+  const handleValidate = (respuestaUsuario: string | number) => {
+    if (!currentRound) return;
 
-    const userAnswer = parseInt(answer);
-    const isCorrect = userAnswer === operation.correctAnswer;
-
-    // Calculamos el puntaje usando nuestro motor
+    const isCorrect = respuestaUsuario == currentRound.respuestaCorrecta; 
+    
     const points = calculateScore(isCorrect, false, timeLeft, TIME_LIMIT_MS);
     setScore(prev => prev + points);
 
     if (isCorrect) {
       Alert.alert('¡Correcto!', `Sumaste ${points} puntos.`);
-      startNewRound();
     } else {
-      Alert.alert('Incorrecto', `La respuesta era ${operation.correctAnswer}. Perdiste ${Math.abs(points)} puntos.`);
-      startNewRound();
+      Alert.alert('Incorrecto', `La respuesta era ${currentRound.respuestaCorrecta}. Perdiste ${Math.abs(points)} puntos.`);
     }
+    startNewRound();
   };
 
+  // Al finalizar el juego, guardamos el resultado y lo llevamos a la pantalla de estadísticas
+  const handleEndGame = async () => {
+    // 1. Guardamos los datos en AsyncStorage
+    await saveScore(String(mode || 'Clásico'), String(difficulty || 'Fácil'), score);
+    
+    // 2. Lo mandamos directo a ver sus estadísticas
+    router.replace('/history');
+  };
+  
   const progressPercentage = (timeLeft / TIME_LIMIT_MS) * 100;
 
+  // --- SOLUCIÓN 2: Definimos un título limpio para mostrar en pantalla ---
+  const tituloPantalla = esMultipleChoice ? 'Múltiple Choice' : (esVerdaderoFalso ? 'Verdadero / Falso' : 'Modo Clásico');
+
   return (
-    // Agregamos el mismo ImageBackground que en el index
     <ImageBackground 
       source={require('../assets/background.jpg')} 
       style={styles.background}
       resizeMode="cover"
     >
       <View style={styles.overlay}>
-        {/* Mostramos el puntaje en la parte superior */}
+        
+        {/* Cabecera con Título a la izquierda y Puntos a la derecha */}
         <View style={styles.header}>
-          <Text style={styles.infoText}>Modo: {mode} | Dificultad: {difficulty}</Text>
+          <Text style={styles.titleText}>{tituloPantalla}</Text>
           <Text style={styles.scoreText}>Puntos: {score}</Text>
         </View>
 
         <ProgressBar percentage={progressPercentage} />
 
-        {operation && (
+        {currentRound && (
           <View style={styles.gameArea}>
-            <Text style={styles.questionText}>{operation.question} = ?</Text>
             
-            <TextInput
-              style={styles.input}
-              keyboardType="numeric"
-              value={answer}
-              onChangeText={setAnswer}
-              placeholder="Escribe tu respuesta..."
-              placeholderTextColor="#A08055"
-              autoFocus 
-            />
+            {/* VISTA MODO MÚLTIPLE CHOICE */}
+            {esMultipleChoice && (
+              <>
+                <Text style={styles.questionText}>{currentRound.pregunta} = ?</Text>
+                <View style={styles.grid}>
+                   {currentRound.opciones.map((opcion: number, index: number) => (
+                      <TouchableOpacity key={index} style={styles.gridButton} onPress={() => handleValidate(opcion)}>
+                         <Text style={styles.buttonText}>{opcion}</Text>
+                      </TouchableOpacity>
+                   ))}
+                </View>
+              </>
+            )}
 
-            <TouchableOpacity style={styles.button} onPress={handleValidate}>
-              <Text style={styles.buttonText}>Responder</Text>
-            </TouchableOpacity>
+            {/* VISTA MODO VERDADERO / FALSO */}
+            {esVerdaderoFalso && (
+              <>
+                <Text style={styles.questionText}>{currentRound.pregunta}</Text>
+                <View style={styles.row}>
+                   <TouchableOpacity style={[styles.button, { backgroundColor: '#4CAF50', flex: 1, marginHorizontal: 5 }]} onPress={() => handleValidate('Verdadero')}>
+                     <Text style={styles.buttonText}>Verdadero</Text>
+                   </TouchableOpacity>
+                   <TouchableOpacity style={[styles.button, { backgroundColor: '#F44336', flex: 1, marginHorizontal: 5 }]} onPress={() => handleValidate('Falso')}>
+                     <Text style={styles.buttonText}>Falso</Text>
+                   </TouchableOpacity>
+                </View>
+              </>
+            )}
+
+            {/* VISTA MODO CLÁSICO */}
+            {esClasico && (
+              <>
+                <Text style={styles.questionText}>{currentRound.pregunta} = ?</Text>
+                <TextInput
+                  style={styles.input}
+                  keyboardType="numeric"
+                  value={answer}
+                  onChangeText={setAnswer}
+                  placeholder="Escribe tu respuesta..."
+                  placeholderTextColor="#A08055"
+                  autoFocus 
+                />
+                <TouchableOpacity style={styles.button} onPress={() => handleValidate(answer)}>
+                  <Text style={styles.buttonText}>Responder</Text>
+                </TouchableOpacity>
+              </>
+            )}
+
           </View>
         )}
 
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Text style={styles.backButtonText}>Abandonar Partida</Text>
-        </TouchableOpacity>
+        // Botón para terminar el juego y guardar el resultado
+       <TouchableOpacity style={styles.backButton} onPress={handleEndGame}>
+          <Text style={styles.backButtonText}>Terminar y Guardar Partida</Text>
+        </TouchableOpacity> 
       </View>
     </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  background: {
-    flex: 1,
-    width: '100%',
-  },
-  overlay: {
-    flex: 1,
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.4)', // Mismo filtro sutil
-  },
-  header: {
-    width: '100%',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  infoText: { 
-    color: '#A08055', 
-    fontSize: 16, 
-    textTransform: 'capitalize',
-    fontWeight: 'bold',
-  },
-  scoreText: {
-    color: '#D4A373',
-    fontSize: 20,
-    fontWeight: '900',
-  },
-  gameArea: { 
-    width: '100%', 
-    alignItems: 'center' 
-  },
-  questionText: { 
-    fontSize: 48, 
-    fontWeight: '900', 
-    color: '#D4A373', 
-    marginBottom: 30,
-    textShadowColor: 'rgba(255, 255, 255, 0.8)',
-    textShadowOffset: { width: 1, height: 1 },
-    textShadowRadius: 3,
-  },
-  input: { 
-    width: '80%', 
-    backgroundColor: '#FEFAE0', 
-    color: '#D4A373', 
-    fontSize: 24, 
-    padding: 15, 
-    borderRadius: 15, 
-    textAlign: 'center', 
-    marginBottom: 20,
-    borderWidth: 2,
-    borderColor: '#E9C46A',
-  },
-  button: { 
-    backgroundColor: '#D4A373', 
-    paddingVertical: 15, 
-    width: '80%', 
-    borderRadius: 15, 
-    alignItems: 'center', 
-    marginBottom: 40,
-    elevation: 3,
-  },
-  buttonText: { 
-    fontSize: 18, 
-    fontWeight: 'bold', 
-    color: '#FEFAE0' 
-  },
-  backButton: { 
-    marginTop: 'auto', 
-    marginBottom: 40 
-  },
-  backButtonText: { 
-    color: '#E07A5F', // Un rojo/naranja más suave
-    fontSize: 16, 
-    fontWeight: 'bold',
-    textDecorationLine: 'underline' 
-  },
+  background: { flex: 1, width: '100%' },
+  overlay: { flex: 1, alignItems: 'center', paddingTop: 60, paddingHorizontal: 20, backgroundColor: 'rgba(255, 255, 255, 0.4)' },
+  header: { width: '100%', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20, alignItems: 'center' },
+  titleText: { color: '#A08055', fontSize: 18, fontWeight: 'bold' },
+  scoreText: { color: '#D4A373', fontSize: 22, fontWeight: '900' },
+  gameArea: { width: '100%', alignItems: 'center' },
+  questionText: { fontSize: 48, fontWeight: '900', color: '#D4A373', marginBottom: 30, textShadowColor: 'rgba(255, 255, 255, 0.8)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 3 },
+  input: { width: '80%', backgroundColor: '#FEFAE0', color: '#D4A373', fontSize: 24, padding: 15, borderRadius: 15, textAlign: 'center', marginBottom: 20, borderWidth: 2, borderColor: '#E9C46A' },
+  button: { backgroundColor: '#D4A373', paddingVertical: 15, width: '80%', borderRadius: 15, alignItems: 'center', marginBottom: 40, elevation: 3 },
+  buttonText: { fontSize: 18, fontWeight: 'bold', color: '#FEFAE0' },
+  backButton: { marginTop: 'auto', marginBottom: 40 },
+  backButtonText: { color: '#E07A5F', fontSize: 16, fontWeight: 'bold', textDecorationLine: 'underline' },
+  row: { flexDirection: 'row', width: '100%', justifyContent: 'space-between' },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', width: '100%' },
+  gridButton: { backgroundColor: '#D4A373', paddingVertical: 15, width: '45%', borderRadius: 15, alignItems: 'center', marginBottom: 20, elevation: 3 }
 });
