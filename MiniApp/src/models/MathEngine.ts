@@ -1,72 +1,69 @@
 
+export type Difficulty = 'facil' | 'medio' | 'dificil' | string;
 
-export type Difficulty = 'facil' | 'medio' | 'dificil';
-
-// Interfaz para representar una operación matemática
 export interface MathOperation {
   question: string;
   correctAnswer: number;
 }
 
-// Genera una operación matemática basada en la dificultad seleccionada
+// Función auxiliar para obtener un número aleatorio entre min y max
+const getRandomInt = (min: number, max: number) => {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+};
+
 export const generateOperation = (difficulty: Difficulty): MathOperation => {
-  let num1: number, num2: number, operator: string;
-  let correctAnswer: number = 0;
-
-  const getRandomInt = (min: number, max: number) => 
-    Math.floor(Math.random() * (max - min + 1)) + min;
-
-  switch (difficulty) {
-    case 'facil':
-      // Sumas y restas simples (1 al 20)
-      num1 = getRandomInt(1, 20);
-      num2 = getRandomInt(1, 20);
-      operator = Math.random() > 0.5 ? '+' : '-';
-      
-      // Evitar resultados negativos para nivel fácil
-      if (operator === '-' && num1 < num2) {
-        const temp = num1;
-        num1 = num2;
-        num2 = temp;
-      }
-      break;
-
-    case 'medio':
-      // Sumas, restas y multiplicaciones (números un poco más grandes)
-      const opsMedio = ['+', '-', '*'];
-      operator = opsMedio[Math.floor(Math.random() * opsMedio.length)];
-      num1 = getRandomInt(10, 50);
-      num2 = operator === '*' ? getRandomInt(2, 12) : getRandomInt(10, 50);
-      break;
-
-    case 'dificil':
-      // Incluye divisiones exactas y números más complejos
-      const opsDificil = ['+', '-', '*', '/'];
-      operator = opsDificil[Math.floor(Math.random() * opsDificil.length)];
-      
-      if (operator === '/') {
-        num2 = getRandomInt(2, 15); // Divisor
-        correctAnswer = getRandomInt(3, 20); // Cociente entero
-        num1 = num2 * correctAnswer; // Dividendo exacto
-      } else {
-        num1 = getRandomInt(20, 100); // Números más grandes para sumas, restas y multiplicaciones
-        num2 = operator === '*' ? getRandomInt(5, 25) : getRandomInt(20, 100);
-      }
-      break;
-  }
-
-  // Calcular la respuesta correcta si no es división
-  if (operator !== '/') {
-    switch (operator) {
-      case '+': correctAnswer = num1 + num2; break;
-      case '-': correctAnswer = num1 - num2; break;
-      case '*': correctAnswer = num1 * num2; break;
+  const diff = difficulty.toLowerCase();
+  
+  if (diff === 'dificil') {
+    // DIFÍCIL: Multiplicaciones grandes y divisiones exactas
+    const isMultiplication = Math.random() > 0.5;
+    
+    if (isMultiplication) {
+      const a = getRandomInt(5, 20);
+      const b = getRandomInt(5, 15);
+      return { question: `${a} × ${b}`, correctAnswer: a * b };
+    } else {
+      // Para garantizar que la división sea exacta (sin decimales), 
+      // multiplicamos dos números primero y pedimos que lo dividan.
+      const divisor = getRandomInt(3, 15);
+      const resultado = getRandomInt(4, 20);
+      const dividendo = divisor * resultado;
+      return { question: `${dividendo} ÷ ${divisor}`, correctAnswer: resultado };
+    }
+  } 
+  
+  else if (diff === 'medio') {
+    // MEDIO: Sumas/Restas hasta 100, y multiplicaciones básicas
+    const operationType = getRandomInt(1, 3); // 1: Suma, 2: Resta, 3: Multiplicación
+    
+    if (operationType === 1) {
+      const a = getRandomInt(20, 80);
+      const b = getRandomInt(10, 50);
+      return { question: `${a} + ${b}`, correctAnswer: a + b };
+    } else if (operationType === 2) {
+      const a = getRandomInt(50, 100);
+      const b = getRandomInt(10, 49);
+      return { question: `${a} - ${b}`, correctAnswer: a - b };
+    } else {
+      const a = getRandomInt(2, 10);
+      const b = getRandomInt(2, 10);
+      return { question: `${a} × ${b}`, correctAnswer: a * b };
+    }
+  } 
+  
+  else {
+    // FÁCIL (Por defecto): Sumas y restas hasta 20
+    const isAddition = Math.random() > 0.5;
+    
+    if (isAddition) {
+      const a = getRandomInt(1, 15);
+      const b = getRandomInt(1, 10);
+      return { question: `${a} + ${b}`, correctAnswer: a + b };
+    } else {
+      // Aseguramos que el resultado no sea negativo poniendo el mayor primero
+      const a = getRandomInt(10, 20);
+      const b = getRandomInt(1, a - 1); 
+      return { question: `${a} - ${b}`, correctAnswer: a - b };
     }
   }
-
-  // Devolver la pregunta y la respuesta correcta
-  return {
-    question: `${num1} ${operator} ${num2}`,
-    correctAnswer
-  };
 };

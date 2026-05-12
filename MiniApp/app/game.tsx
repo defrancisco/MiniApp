@@ -6,10 +6,7 @@ import { calculateScore } from '../src/models/ScoreEngine';
 import ProgressBar from '../src/components/ProgressBar';
 
 import { generarPreguntaMC, generarPreguntaVF, generarPreguntaClasica } from '../src/strategies/GameModes';
-// 1. Importamos la función para guardar la partida
 import { saveScore } from '../src/models/StorageEngine';
-
-const TIME_LIMIT_MS = 10000; 
 
 export default function GameScreen() {
   const { difficulty, mode } = useLocalSearchParams();
@@ -17,15 +14,29 @@ export default function GameScreen() {
   
   const [currentRound, setCurrentRound] = useState<any>(null);
   const [answer, setAnswer] = useState('');
-  const [timeLeft, setTimeLeft] = useState(TIME_LIMIT_MS);
   const [score, setScore] = useState(0);
 
+  // 1. Detectamos todos los modos, incluyendo el Contra Reloj
   const modoNormalizado = String(mode || '').toLowerCase();
   const esMultipleChoice = modoNormalizado.includes('choice') || modoNormalizado.includes('ltiple') || modoNormalizado.includes('multiple');
   const esVerdaderoFalso = modoNormalizado.includes('verdadero') || modoNormalizado.includes('falso') || modoNormalizado.includes('v/f');
-  const esClasico = !esMultipleChoice && !esVerdaderoFalso;
+  const esContraReloj = modoNormalizado.includes('reloj') || modoNormalizado.includes('contra');
+  const esClasico = !esMultipleChoice && !esVerdaderoFalso && !esContraReloj;
 
-  const startNewRound = () => {
+  // 2. Calculamos el tiempo base según la dificultad elegida
+  const obtenerTiempoPorDificultad = () => {
+    const dif = String(difficulty || '').toLowerCase();
+    if (dif === 'dificil') return 5000; 
+    if (dif === 'medio') return 8000;  
+    return 12000;                      
+  };
+
+  // 60s para contra reloj, o el tiempo dinámico para los demás modos
+  const TIME_LIMIT_MS = esContraReloj ? 60000 : obtenerTiempoPorDificultad();
+  const [timeLeft, setTimeLeft] = useState(TIME_LIMIT_MS);
+
+  // 3. Modificamos startNewRound para que acepte NO reiniciar el reloj
+  const startNewRound = (reiniciarReloj = true) => {
     let nuevaPregunta;
     
     if (esMultipleChoice) {
@@ -38,31 +49,28 @@ export default function GameScreen() {
 
     setCurrentRound(nuevaPregunta);
     setAnswer('');
-    setTimeLeft(TIME_LIMIT_MS);
+    
+    if (reiniciarReloj) {
+      setTimeLeft(TIME_LIMIT_MS);
+    }
   };
 
+  // Cuando arranca la pantalla por primera vez, generamos la primera pregunta
   useEffect(() => {
-    startNewRound();
+    startNewRound(true);
   }, [difficulty, mode]);
 
+  // REGLA: El reloj corre solo basándose en el tiempo, no en la ronda
   useEffect(() => {
-    if (!currentRound || timeLeft <= 0) return;
+    if (timeLeft <= 0) return;
 
     const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 100) {
-          clearInterval(timer);
-          handleTimeOut(); 
-          return 0;
-        }
-        return prev - 100;
-      });
+      setTimeLeft((prev) => (prev > 0 ? prev - 100 : 0));
     }, 100);
 
     return () => clearInterval(timer);
-  }, [currentRound, timeLeft]);
+  }, []); 
 
-  // 2. Función que guarda los datos en AsyncStorage y nos lleva al historial
   const handleEndGame = async () => {
     await saveScore(String(mode || 'Clásico'), String(difficulty || 'Fácil'), score);
     router.replace('/history');
@@ -72,30 +80,49 @@ export default function GameScreen() {
     const points = calculateScore(false, true, 0, TIME_LIMIT_MS);
     setScore(prev => prev + points);
 
-    Alert.alert('¡Tiempo agotado!', `Perdiste ${Math.abs(points)} puntos.`, [
-      { text: 'Siguiente', onPress: startNewRound },
-      { text: 'Terminar Partida', onPress: handleEndGame, style: 'destructive' }
+    Alert.alert('¡Tiempo agotado!', `Se acabó el tiempo. Terminaste con ${score} puntos.`, [
+      { text: 'Ver Resultados', onPress: handleEndGame }
     ]);
   };
+
+  // Efecto separado para detectar cuando el tiempo llega a cero
+  useEffect(() => {
+    if (timeLeft === 0 && currentRound) {
+      handleTimeOut();
+    }
+  }, [timeLeft]);
 
   const handleValidate = (respuestaUsuario: string | number) => {
     if (!currentRound) return;
 
     const isCorrect = respuestaUsuario == currentRound.respuestaCorrecta; 
-    
     const points = calculateScore(isCorrect, false, timeLeft, TIME_LIMIT_MS);
-    setScore(prev => prev + points);
-
+    
     if (isCorrect) {
-      Alert.alert('¡Correcto!', `Sumaste ${points} puntos.`);
+      setScore(prev => prev + points);
+      if (!esContraReloj) {
+        Alert.alert('¡Correcto!', `Sumaste ${points} puntos.`);
+      }
+      startNewRound(!esContraReloj); 
     } else {
-      Alert.alert('Incorrecto', `La respuesta era ${currentRound.respuestaCorrecta}. Perdiste ${Math.abs(points)} puntos.`);
+      if (esContraReloj) {
+        Alert.alert('¡Fallaste!', `En el Modo Contra Reloj un error termina la partida. La respuesta era ${currentRound.respuestaCorrecta}.`, [
+          { text: 'Ver Resultados', onPress: handleEndGame, style: 'destructive' }
+        ]);
+      } else {
+        setScore(prev => prev + points);
+        Alert.alert('Incorrecto', `Era ${currentRound.respuestaCorrecta}.`);
+        startNewRound(true); 
+      }
     }
-    startNewRound();
   };
 
   const progressPercentage = (timeLeft / TIME_LIMIT_MS) * 100;
-  const tituloPantalla = esMultipleChoice ? 'Múltiple Choice' : (esVerdaderoFalso ? 'Verdadero / Falso' : 'Modo Clásico');
+  
+  let tituloPantalla = 'Modo Clásico';
+  if (esMultipleChoice) tituloPantalla = 'Múltiple Choice';
+  if (esVerdaderoFalso) tituloPantalla = 'Verdadero / Falso';
+  if (esContraReloj) tituloPantalla = 'Contra Reloj';
 
   return (
     <ImageBackground 
@@ -133,17 +160,17 @@ export default function GameScreen() {
               <>
                 <Text style={styles.questionText}>{currentRound.pregunta}</Text>
                 <View style={styles.row}>
-                   <TouchableOpacity style={[styles.button, { backgroundColor: '#4CAF50', flex: 1, marginHorizontal: 5 }]} onPress={() => handleValidate('Verdadero')}>
+                   <TouchableOpacity style={[styles.button, { backgroundColor: '#95e198', flex: 1, marginHorizontal: 5 }]} onPress={() => handleValidate('Verdadero')}>
                      <Text style={styles.buttonText}>Verdadero</Text>
                    </TouchableOpacity>
-                   <TouchableOpacity style={[styles.button, { backgroundColor: '#F44336', flex: 1, marginHorizontal: 5 }]} onPress={() => handleValidate('Falso')}>
+                   <TouchableOpacity style={[styles.button, { backgroundColor: '#dc5248', flex: 1, marginHorizontal: 5 }]} onPress={() => handleValidate('Falso')}>
                      <Text style={styles.buttonText}>Falso</Text>
                    </TouchableOpacity>
                 </View>
               </>
             )}
 
-            {esClasico && (
+            {(esClasico || esContraReloj) && (
               <>
                 <Text style={styles.questionText}>{currentRound.pregunta} = ?</Text>
                 <TextInput
@@ -164,7 +191,6 @@ export default function GameScreen() {
           </View>
         )}
 
-        {/* 3. Botón para terminar y llamar a la función que guarda los puntos */}
         <TouchableOpacity style={styles.backButton} onPress={handleEndGame}>
           <Text style={styles.backButtonText}>Terminar y Guardar Partida</Text>
         </TouchableOpacity>
