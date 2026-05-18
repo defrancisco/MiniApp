@@ -18,7 +18,15 @@ export const saveScore = async (mode: string, difficulty: string, score: number)
     
     const newRecord: GameRecord = {
       id: Date.now().toString(),
-      date: new Date().toLocaleDateString(),
+      // Formateamos la fecha de manera legible para el usuario "18/05/2026, 14:06". 
+      // Antiguamente usábamos solo la fecha, pero ahora incluimos también la hora para diferenciar partidas jugadas el mismo día.
+      date: new Date().toLocaleString('es-AR', { 
+          day: '2-digit', 
+          month: '2-digit', 
+          year: 'numeric', 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        }),
       mode,
       difficulty,
       score,
