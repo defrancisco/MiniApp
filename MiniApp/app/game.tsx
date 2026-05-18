@@ -22,17 +22,12 @@ export default function GameScreen() {
   const [incorrectCount, setIncorrectCount] = useState(0);
   const [reactionTimes, setReactionTimes] = useState<number[]>([]);
 
-  // 1. Detectamos todos los modos, incluyendo el Contra Reloj
   const modoNormalizado = String(mode || '').toLowerCase();
   const esMultipleChoice = modoNormalizado.includes('choice') || modoNormalizado.includes('ltiple') || modoNormalizado.includes('multiple');
   const esVerdaderoFalso = modoNormalizado.includes('verdadero') || modoNormalizado.includes('falso') || modoNormalizado.includes('v/f');
   const esContraReloj = modoNormalizado.includes('reloj') || modoNormalizado.includes('contra');
   const esClasico = !esMultipleChoice && !esVerdaderoFalso && !esContraReloj;
 
-<<<<<<< HEAD
-=======
-  // 2. Calculamos el tiempo base según la dificultad elegida
->>>>>>> 479cd05b916c16520ca24e47e750294afd9934a6
   const obtenerTiempoPorDificultad = () => {
     const dif = String(difficulty || '').toLowerCase();
     if (dif === 'dificil') return 5000; 
@@ -40,17 +35,9 @@ export default function GameScreen() {
     return 12000;                      
   };
 
-<<<<<<< HEAD
   const TIME_LIMIT_MS = esContraReloj ? 60000 : obtenerTiempoPorDificultad();
   const [timeLeft, setTimeLeft] = useState(TIME_LIMIT_MS);
 
-=======
-  // 60s para contra reloj, o el tiempo dinámico para los demás modos
-  const TIME_LIMIT_MS = esContraReloj ? 60000 : obtenerTiempoPorDificultad();
-  const [timeLeft, setTimeLeft] = useState(TIME_LIMIT_MS);
-
-  // 3. Modificamos startNewRound para que acepte NO reiniciar el reloj
->>>>>>> 479cd05b916c16520ca24e47e750294afd9934a6
   const startNewRound = (reiniciarReloj = true) => {
     let nuevaPregunta;
     
@@ -70,12 +57,10 @@ export default function GameScreen() {
     }
   };
 
-  // Cuando arranca la pantalla por primera vez, generamos la primera pregunta
   useEffect(() => {
     startNewRound(true);
   }, [difficulty, mode]);
 
-  // REGLA: El reloj corre solo basándose en el tiempo, no en la ronda
   useEffect(() => {
     if (timeLeft <= 0) return;
 
@@ -86,13 +71,8 @@ export default function GameScreen() {
     return () => clearInterval(timer);
   }, []); 
 
-<<<<<<< HEAD
   const handleEndGame = async (finalScore: number) => {
     await saveScore(String(mode || 'Clásico'), String(difficulty || 'Fácil'), finalScore);
-=======
-  const handleEndGame = async () => {
-    await saveScore(String(mode || 'Clásico'), String(difficulty || 'Fácil'), score);
->>>>>>> 479cd05b916c16520ca24e47e750294afd9934a6
     router.replace('/history');
   };
 
@@ -161,7 +141,6 @@ export default function GameScreen() {
     setIncorrectCount(newIncorrect);
     setReactionTimes(newTimes);
 
-<<<<<<< HEAD
     if (esContraReloj) {
       mostrarEstadisticasFinales(newScore, correctCount, newIncorrect, newTimes);
     } else {
@@ -176,14 +155,6 @@ export default function GameScreen() {
     }
   };
 
-=======
-    Alert.alert('¡Tiempo agotado!', `Se acabó el tiempo. Terminaste con ${score} puntos.`, [
-      { text: 'Ver Resultados', onPress: handleEndGame }
-    ]);
-  };
-
-  // Efecto separado para detectar cuando el tiempo llega a cero
->>>>>>> 479cd05b916c16520ca24e47e750294afd9934a6
   useEffect(() => {
     if (timeLeft === 0 && currentRound) {
       handleTimeOut();
@@ -195,7 +166,6 @@ export default function GameScreen() {
 
     const isCorrect = respuestaUsuario == currentRound.respuestaCorrecta; 
     const points = calculateScore(isCorrect, false, timeLeft, TIME_LIMIT_MS);
-<<<<<<< HEAD
     const newScore = score + points;
 
     const tiempoReaccion = (TIME_LIMIT_MS - timeLeft) / 1000;
@@ -238,24 +208,6 @@ export default function GameScreen() {
              }}
           ]);
         }
-=======
-    
-    if (isCorrect) {
-      setScore(prev => prev + points);
-      if (!esContraReloj) {
-        Alert.alert('¡Correcto!', `Sumaste ${points} puntos.`);
-      }
-      startNewRound(!esContraReloj); 
-    } else {
-      if (esContraReloj) {
-        Alert.alert('¡Fallaste!', `En el Modo Contra Reloj un error termina la partida. La respuesta era ${currentRound.respuestaCorrecta}.`, [
-          { text: 'Ver Resultados', onPress: handleEndGame, style: 'destructive' }
-        ]);
-      } else {
-        setScore(prev => prev + points);
-        Alert.alert('Incorrecto', `Era ${currentRound.respuestaCorrecta}.`);
-        startNewRound(true); 
->>>>>>> 479cd05b916c16520ca24e47e750294afd9934a6
       }
     }
   };
@@ -308,10 +260,10 @@ export default function GameScreen() {
               <>
                 <Text style={styles.questionText}>{currentRound.pregunta}</Text>
                 <View style={styles.row}>
-                   <TouchableOpacity style={[styles.button, { backgroundColor: '#95e198', flex: 1, marginHorizontal: 5 }]} onPress={() => handleValidate('Verdadero')}>
+                   <TouchableOpacity style={[styles.button, { backgroundColor: '#4CAF50', flex: 1, marginHorizontal: 5 }]} onPress={() => handleValidate('Verdadero')}>
                      <Text style={styles.buttonText}>Verdadero</Text>
                    </TouchableOpacity>
-                   <TouchableOpacity style={[styles.button, { backgroundColor: '#dc5248', flex: 1, marginHorizontal: 5 }]} onPress={() => handleValidate('Falso')}>
+                   <TouchableOpacity style={[styles.button, { backgroundColor: '#F44336', flex: 1, marginHorizontal: 5 }]} onPress={() => handleValidate('Falso')}>
                      <Text style={styles.buttonText}>Falso</Text>
                    </TouchableOpacity>
                 </View>
@@ -339,7 +291,6 @@ export default function GameScreen() {
           </View>
         )}
 
-<<<<<<< HEAD
         {/* Cambiamos el onPress para que llame a la confirmación primero */}
         <View style={styles.actionButtonsContainer}>
           <TouchableOpacity style={styles.restartButton} onPress={confirmarReinicio}>
@@ -351,11 +302,6 @@ export default function GameScreen() {
           </TouchableOpacity>
         </View>
 
-=======
-        <TouchableOpacity style={styles.backButton} onPress={handleEndGame}>
-          <Text style={styles.backButtonText}>Terminar y Guardar Partida</Text>
-        </TouchableOpacity>
->>>>>>> 479cd05b916c16520ca24e47e750294afd9934a6
       </View>
     </ImageBackground>
   );
