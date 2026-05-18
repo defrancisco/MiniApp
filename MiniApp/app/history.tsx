@@ -3,6 +3,9 @@ import { useRouter, Stack } from 'expo-router';
 import { useState, useEffect } from 'react';
 import { getScores, GameRecord } from '../src/models/StorageEngine';
 
+
+// HISTORIAL DE PARTIDAS
+
 export default function HistoryScreen() {
   const [history, setHistory] = useState<GameRecord[]>([]);
   const router = useRouter();

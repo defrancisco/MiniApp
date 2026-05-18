@@ -1,23 +1,28 @@
 import { View, Text, StyleSheet, TouchableOpacity, ImageBackground } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
+// Importamos el archivo central de diseño
+import { Theme } from '../src/constants/theme';
+import { indexStyles as styles } from '../src/styles/indexStyles';
 
 export default function WelcomeScreen() {
   const router = useRouter();
-  
-  // Estados locales para capturar la configuración de la partida
   const [difficulty, setDifficulty] = useState('facil');
   const [iterations, setIterations] = useState('5');
 
   const levels = [
-    { id: 'facil', label: 'Fácil', color: '#8ecae6' },
-    { id: 'medio', label: 'Medio', color: '#ffb703' },
-    { id: 'dificil', label: 'Difícil', color: '#fb8500' },
+    { id: 'facil', label: 'Fácil', color: Theme.colors.levels.facil },
+    { id: 'medio', label: 'Medio', color: Theme.colors.levels.medio },
+    { id: 'dificil', label: 'Difícil', color: Theme.colors.levels.dificil },
   ];
 
-  const roundOptions = ['5', '10', '15'];
+  // Configuración dinámica de colores para las iteraciones
+  const roundOptions = [
+    { id: '5', label: '5', color: Theme.colors.iterations.i5 },
+    { id: '10', label: '10', color: Theme.colors.iterations.i10 },
+    { id: '15', label: '15', color: Theme.colors.iterations.i15 },
+  ];
 
-  // Función unificada para navegar pasando toda la configuración elegida
   const navigateToGame = (mode: string) => {
     router.push({
       pathname: '/game',
@@ -34,7 +39,7 @@ export default function WelcomeScreen() {
       <View style={styles.overlay}>
         <Text style={styles.title}>Cálculo Mental</Text>
 
-        {/* --- SECCIÓN: SELECCIÓN DE DIFICULTAD --- */}
+        {/* --- DIFICULTAD --- */}
         <Text style={styles.subtitle}>Dificultad:</Text>
         <View style={styles.rowContainer}>
           {levels.map((level) => (
@@ -52,25 +57,25 @@ export default function WelcomeScreen() {
           ))}
         </View>
 
-        {/* --- SECCIÓN: CANTIDAD DE ITERACIONES --- */}
+        {/* --- PREGUNTAS POR PARTIDA (AHORA CON COLORES) --- */}
         <Text style={styles.subtitle}>Preguntas por partida:</Text>
         <View style={styles.rowContainer}>
-          {roundOptions.map((num) => (
+          {roundOptions.map((opt) => (
             <TouchableOpacity
-              key={num}
+              key={opt.id}
               style={[
                 styles.optionButton, 
-                { backgroundColor: '#A08055' },
-                iterations === num && styles.selectedOption
+                { backgroundColor: opt.color },
+                iterations === opt.id && styles.selectedOption
               ]}
-              onPress={() => setIterations(num)}
+              onPress={() => setIterations(opt.id)}
             >
-              <Text style={styles.optionText}>{num}</Text>
+              <Text style={styles.optionText}>{opt.label}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* --- SECCIÓN: MODOS DE JUEGO --- */}
+        {/* --- MODOS DE JUEGO --- */}
         <Text style={styles.subtitle}>Modo de Juego:</Text>
         
         <TouchableOpacity style={styles.modeButton} onPress={() => navigateToGame('Clásico')}>
@@ -86,13 +91,12 @@ export default function WelcomeScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity 
-          style={[styles.modeButton, { backgroundColor: '#E07A5F', borderColor: '#E07A5F' }]} 
+          style={[styles.modeButton, { backgroundColor: Theme.colors.accent, borderColor: Theme.colors.accent }]} 
           onPress={() => navigateToGame('Contra Reloj')}
         >
-          <Text style={[styles.modeText, { color: '#FFF' }]}>⏱ Contra Reloj</Text>
+          <Text style={[styles.modeText, { color: Theme.colors.textLight }]}>⏱ Contra Reloj</Text>
         </TouchableOpacity>
 
-        {/* --- BOTÓN ENLACE AL HISTORIAL --- */}
         <TouchableOpacity style={styles.historyLink} onPress={() => router.push('/history')}>
           <Text style={styles.historyLinkText}>🏆 Ver Mejores Puntajes</Text>
         </TouchableOpacity>
@@ -101,17 +105,3 @@ export default function WelcomeScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  background: { flex: 1, width: '100%' },
-  overlay: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255, 255, 255, 0.4)', padding: 20 },
-  title: { fontSize: 42, fontWeight: '900', color: '#D4A373', marginBottom: 5 },
-  subtitle: { fontSize: 16, fontWeight: 'bold', color: '#A08055', marginBottom: 5, marginTop: 10, alignSelf: 'flex-start' },
-  rowContainer: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginBottom: 15 },
-  optionButton: { flex: 1, paddingVertical: 8, marginHorizontal: 5, borderRadius: 10, alignItems: 'center', opacity: 0.5 },
-  selectedOption: { opacity: 1, borderWidth: 2, borderColor: '#D4A373' },
-  optionText: { color: '#FFF', fontWeight: 'bold', fontSize: 16 },
-  modeButton: { backgroundColor: '#FEFAE0', paddingVertical: 12, width: '100%', borderRadius: 15, alignItems: 'center', marginBottom: 10, borderWidth: 1, borderColor: '#E9C46A' },
-  modeText: { fontSize: 18, fontWeight: 'bold', color: '#D4A373' },
-  historyLink: { marginTop: 15 },
-  historyLinkText: { color: '#A08055', fontWeight: 'bold', textDecorationLine: 'underline' }
-});

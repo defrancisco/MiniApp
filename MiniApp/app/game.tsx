@@ -5,8 +5,12 @@ import { Difficulty } from '../src/models/MathEngine';
 import { calculateScore } from '../src/models/ScoreEngine';
 import ProgressBar from '../src/components/ProgressBar';
 
+
 import { generarPreguntaMC, generarPreguntaVF, generarPreguntaClasica } from '../src/strategies/GameModes';
 import { saveScore } from '../src/models/StorageEngine';
+// Importación del archivo centralizado de estilos
+import { Theme } from '../src/constants/theme';
+import { gameStyles as styles } from '../src/styles/gameStyles';
 
 export default function GameScreen() {
   const { difficulty, mode, iterations } = useLocalSearchParams();
@@ -78,17 +82,14 @@ export default function GameScreen() {
 
   const handleRestartGame = async (finalScore: number) => {
     await saveScore(String(mode || 'Clásico'), String(difficulty || 'Fácil'), finalScore);
-    
     setScore(0);
     setQuestionNumber(1);
     setCorrectCount(0);
     setIncorrectCount(0);
     setReactionTimes([]);
-    
     startNewRound(true);
   };
 
-  // --- NUEVA FUNCIÓN: Cartel de aviso de reinicio ---
   const confirmarReinicio = () => {
     Alert.alert(
       '🔄 Reiniciar Partida',
@@ -260,10 +261,10 @@ export default function GameScreen() {
               <>
                 <Text style={styles.questionText}>{currentRound.pregunta}</Text>
                 <View style={styles.row}>
-                   <TouchableOpacity style={[styles.button, { backgroundColor: '#4CAF50', flex: 1, marginHorizontal: 5 }]} onPress={() => handleValidate('Verdadero')}>
+                   <TouchableOpacity style={[styles.button, { backgroundColor: Theme.colors.success, flex: 1, marginHorizontal: 5 }]} onPress={() => handleValidate('Verdadero')}>
                      <Text style={styles.buttonText}>Verdadero</Text>
                    </TouchableOpacity>
-                   <TouchableOpacity style={[styles.button, { backgroundColor: '#F44336', flex: 1, marginHorizontal: 5 }]} onPress={() => handleValidate('Falso')}>
+                   <TouchableOpacity style={[styles.button, { backgroundColor: Theme.colors.error, flex: 1, marginHorizontal: 5 }]} onPress={() => handleValidate('Falso')}>
                      <Text style={styles.buttonText}>Falso</Text>
                    </TouchableOpacity>
                 </View>
@@ -279,7 +280,7 @@ export default function GameScreen() {
                   value={answer}
                   onChangeText={setAnswer}
                   placeholder="Escribe tu respuesta..."
-                  placeholderTextColor="#A08055"
+                  placeholderTextColor={Theme.colors.secondary}
                   autoFocus 
                 />
                 <TouchableOpacity style={styles.button} onPress={() => handleValidate(answer)}>
@@ -291,7 +292,6 @@ export default function GameScreen() {
           </View>
         )}
 
-        {/* Cambiamos el onPress para que llame a la confirmación primero */}
         <View style={styles.actionButtonsContainer}>
           <TouchableOpacity style={styles.restartButton} onPress={confirmarReinicio}>
             <Text style={styles.restartButtonText}>Reiniciar</Text>
@@ -307,26 +307,3 @@ export default function GameScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  background: { flex: 1, width: '100%' },
-  overlay: { flex: 1, alignItems: 'center', paddingTop: 60, paddingHorizontal: 20, backgroundColor: 'rgba(255, 255, 255, 0.4)' },
-  header: { width: '100%', flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20, alignItems: 'center' },
-  titleText: { color: '#A08055', fontSize: 18, fontWeight: 'bold' },
-  iterationText: { color: '#E07A5F', fontSize: 14, fontWeight: 'bold', marginTop: 2 },
-  scoreText: { color: '#D4A373', fontSize: 22, fontWeight: '900' },
-  gameArea: { width: '100%', alignItems: 'center' },
-  questionText: { fontSize: 48, fontWeight: '900', color: '#D4A373', marginBottom: 30, textShadowColor: 'rgba(255, 255, 255, 0.8)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 3 },
-  input: { width: '80%', backgroundColor: '#FEFAE0', color: '#D4A373', fontSize: 24, padding: 15, borderRadius: 15, textAlign: 'center', marginBottom: 20, borderWidth: 2, borderColor: '#E9C46A' },
-  button: { backgroundColor: '#D4A373', paddingVertical: 15, width: '80%', borderRadius: 15, alignItems: 'center', marginBottom: 40, elevation: 3 },
-  buttonText: { fontSize: 18, fontWeight: 'bold', color: '#FEFAE0' },
-  
-  actionButtonsContainer: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginTop: 'auto', marginBottom: 40 },
-  restartButton: { paddingVertical: 10, paddingHorizontal: 20 },
-  restartButtonText: { color: '#A08055', fontSize: 16, fontWeight: 'bold', textDecorationLine: 'underline' },
-  backButton: { paddingVertical: 10, paddingHorizontal: 20 },
-  backButtonText: { color: '#E07A5F', fontSize: 16, fontWeight: 'bold', textDecorationLine: 'underline' },
-  
-  row: { flexDirection: 'row', width: '100%', justifyContent: 'space-between' },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', width: '100%' },
-  gridButton: { backgroundColor: '#D4A373', paddingVertical: 15, width: '45%', borderRadius: 15, alignItems: 'center', marginBottom: 20, elevation: 3 }
-});

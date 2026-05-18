@@ -1,4 +1,4 @@
-// src/models/ScoreEngine.ts
+// LÓGICA DE PUNTUACIÓN
 
 export const calculateScore = (
   isCorrect: boolean,
