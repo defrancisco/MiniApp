@@ -1,5 +1,11 @@
 # Juego de Cálculos Mentales
 
+## Documento de Entrega
+Puedes revisar el informe completo con la descripción de funcionalidades y decisiones de diseño arquitectónico en el siguiente enlace:
+
+[📄 Ver Informe de Entrega (Google Docs)](https://docs.google.com/document/d/1K5YCXpbXHLwz1FKn6H_22uyYWJFqGyMxr77wzyGaxlk/edit?usp=drive_web)
+
+
 ## Descripción General
 Esta es una aplicación móvil desarrollada en React Native que implementa un juego de cálculo mental. El objetivo principal es evaluar la capacidad del usuario para resolver operaciones matemáticas bajo presión de tiempo, registrando el desempeño, la precisión y la velocidad de respuesta. El sistema presenta operaciones matemáticas generadas dinámicamente.
 
