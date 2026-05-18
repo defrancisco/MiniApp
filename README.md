@@ -29,7 +29,7 @@ Para levantar el proyecto en otro equipo:
 2. Iniciar el servidor local con `npx expo start`
 3. Escanear el código QR resultante con la app Expo Go desde el celular.
 
-Si hay inconvenientes se recomienda utilizar `npx expo start tunnel -c`
+Si hay inconvenientes se recomienda utilizar `npx expo start -c` para eliminar cache.
 
 ## Autor
 Desarrollo individual realizado por la alumna Delfina Rocío Francisco Frate.
